@@ -18,7 +18,7 @@ public static class EventLogAsyncReader
         var instanceId = entry.InstanceId;
 
         // https://docs.microsoft.com/en-us/windows/security/threat-protection/auditing/audit-filtering-platform-connection
-        return instanceId == 5156
+        return instanceId == 5156 // allowed
             || instanceId == 5157 // block connection
             || instanceId == 5152;// drop packet
     }
@@ -90,18 +90,19 @@ public sealed class EventLogAsyncReader<T> : IPagedSourceProviderAsync<T>, INoti
         remove { eventLog.EntryWritten -= value; }
     }
 
-    private EventLog? eventLog;
+    private readonly EventLog eventLog;
 
     public EventLogAsyncReader(string eventLogName, Func<EventLogEntry, int, T?> projection, int pageSize = 20)
     {
+        eventLog = new EventLog(eventLogName);
         _projection = projection;
 
-        eventLog = new EventLog(eventLogName);
-        eventLog.EnableRaisingEvents = true;
 
         paginationManager = new PaginationManager<T>(this, pageSize: pageSize);
 
         Entries = new VirtualizingObservableCollection<T>(paginationManager);
+
+        eventLog.EnableRaisingEvents = true;
     }
 
 
@@ -198,13 +199,13 @@ public sealed class EventLogAsyncReader<T> : IPagedSourceProviderAsync<T>, INoti
             firstEventTimeWritten = eventLog.Entries[0].TimeWritten;
         }
 
-        var totalCount = eventLog?.Entries.Count ?? 0;
+        var totalCount = eventLog.Entries.Count;
         for (var i = pageoffset + 1; i < totalCount && cpt < count; i++)
         {
             T? ret = null;
             try
             {
-                EventLogEntry? entry = eventLog.Entries[^(i + NewEntriesCount)];
+                EventLogEntry entry = eventLog.Entries[^(i + NewEntriesCount)];//TODO
                 if (FilterPredicate?.Invoke(entry) ?? true)
                 {
                     matchesCount++;
@@ -262,8 +263,9 @@ public sealed class EventLogAsyncReader<T> : IPagedSourceProviderAsync<T>, INoti
 
     public void Dispose()
     {
-        eventLog?.Dispose();
-        eventLog = null;
+        eventLog.EnableRaisingEvents = false;
+        eventLog.Dispose();
+        //eventLog = null;
     }
 
 
