@@ -204,7 +204,29 @@ public abstract class Rule : INotifyPropertyChanged
             LogHelper.Debug(r.AppPkgId + " <--> " + appPkgId + "   " + (String.IsNullOrEmpty(r.AppPkgId) || (r.AppPkgId == appPkgId)).ToString());
             LogHelper.Debug(r.LUOwn + " <--> " + LocalUserOwner + "   " + (String.IsNullOrEmpty(r.LUOwn) || (r.LUOwn == LocalUserOwner)).ToString());
         }*/
-        return Enabled
+
+        if (!Enabled)
+            return false;
+        if (!((Profiles & currentProfile) != 0 || (Profiles & (int)NET_FW_PROFILE_TYPE2_.NET_FW_PROFILE2_ALL) != 0))
+            return false;
+        if (!(string.IsNullOrEmpty(ApplicationName) || StringComparer.CurrentCultureIgnoreCase.Equals(ApplicationName, path)))
+            return false;
+        if (!(string.IsNullOrEmpty(ServiceName) || service.Any() && ServiceName == "*" || StringComparer.CurrentCultureIgnoreCase.Equals(service, ServiceName)))
+            return false;
+        if (!(Protocol == WFP.Protocol.ANY || Protocol == protocol))
+            return false;
+        if (!CheckRuleAddresses(RemoteAddresses, target))
+            return false;
+        if (!CheckRulePorts(RemotePorts, remoteport))
+            return false;
+        if (!CheckRulePorts(LocalPorts, localport))
+            return false;
+        if (!(string.IsNullOrEmpty(AppPkgId) || AppPkgId == appPkgId))
+            return false;
+        return (string.IsNullOrEmpty(LUOwn) || LUOwn == LocalUserOwner);
+
+        /*
+        bool result = Enabled
                  && ((Profiles & currentProfile) != 0 || (Profiles & (int)NET_FW_PROFILE_TYPE2_.NET_FW_PROFILE2_ALL) != 0)
                  && (string.IsNullOrEmpty(ApplicationName) || StringComparer.CurrentCultureIgnoreCase.Equals(ApplicationName, path))
                  && (string.IsNullOrEmpty(ServiceName) || !string.IsNullOrEmpty(service) && ServiceName == "*" || StringComparer.CurrentCultureIgnoreCase.Equals(ServiceName, service))
@@ -217,6 +239,12 @@ public abstract class Rule : INotifyPropertyChanged
                  //&& r.LocalAddresses //@
                  && (string.IsNullOrEmpty(AppPkgId) || AppPkgId == appPkgId)
                  && (string.IsNullOrEmpty(LUOwn) || LUOwn == LocalUserOwner);
+        
+        if (result && !(string.IsNullOrEmpty(ApplicationName) || StringComparer.CurrentCultureIgnoreCase.Equals(ApplicationName, path)))
+        {
+            bool b = false;
+    }
+        return result;*/
     }
 
 
