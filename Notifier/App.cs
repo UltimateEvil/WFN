@@ -1,4 +1,5 @@
 ﻿
+using NetFwTypeLib;
 using System;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -32,7 +33,7 @@ public sealed class App : Application, IDisposable
     private static App APP_INSTANCE;
     private static NotificationWindow notifierWindow;
     private static ActivityWindow activityWindow;
-    private EventLog eventLog;
+    private readonly EventLog eventLog;
 
     public ObservableCollection<CurrentConn> Connections { get; } = new ObservableCollection<CurrentConn>();
 
@@ -159,7 +160,7 @@ public sealed class App : Application, IDisposable
 
         bool allowed = EventLogAsyncReader.IsFirewallEventAllowed(entry.InstanceId);
         activityWindow.ShowActivity(allowed ? ActivityWindow.ActivityEnum.Allowed : ActivityWindow.ActivityEnum.Blocked);
-        if (allowed || !LoggedConnection.TryCreateFromEventLogEntry(entry, 0, out CurrentConn view))
+        if (allowed || !LoggedConnection.TryCreateFromEventLogEntry(entry, 0, out CurrentConn view) || view is null) //view == null redundant but mutes a warning.
         {
             return;
         }
@@ -219,13 +220,29 @@ public sealed class App : Application, IDisposable
                 conn.CurrentLocalUserOwner = ProcessHelper.GetLocalUserOwner(conn.Pid);
                 
                 // Check whether this connection is blocked by a rule.
-                var blockingRules = FirewallHelper.GetMatchingRules(conn.Path, conn.CurrentAppPkgId, conn.RawProtocol, conn.TargetIP, conn.TargetPort, conn.SourcePort, conn.ServiceName, conn.CurrentLocalUserOwner, blockOnly: true, outgoingOnly: true);
+                var blockingRules = FirewallHelper.GetMatchingRules(conn.Path, conn.CurrentAppPkgId, conn.RawProtocol, conn.TargetIP, conn.TargetPort, conn.SourcePort, conn.ServiceName ?? "", conn.CurrentLocalUserOwner, blockOnly: true, outgoingOnly: true);
+
                 if (blockingRules.Any())
                 {
                     LogHelper.Info("Connection matches a block-rule!");
 
                     LogHelper.Debug($"pid: {Environment.ProcessId} GetMatchingRules: {conn.FileName}, {conn.Protocol}, {conn.TargetIP}, {conn.TargetPort}, {conn.SourcePort}, {conn.ServiceName}");
+                    LogHelper.Debug($"pid: {Process.GetCurrentProcess().Id} GetMatchingRules: {conn.FileName}, {conn.Protocol}, {conn.TargetIP}, {conn.TargetPort}, {conn.SourcePort}, {conn.ServiceName}");
+                    blockingRules.All(r => {//no need to check more, the first is sufficient
 
+                        LogHelper.Debug($"enabled {r.Name} {r.Enabled} {r.Matches(conn.Path, conn.ServiceName ?? "",  conn.RawProtocol, conn.SourcePort, conn.TargetIP, conn.TargetPort, conn.CurrentAppPkgId, conn.CurrentLocalUserOwner, FirewallHelper.GetCurrentProfile())}");
+                        LogHelper.Debug($"{r.Profiles} <--> {FirewallHelper.GetCurrentProfile()} {(((r.Profiles & FirewallHelper.GetCurrentProfile()) != 0) || ((r.Profiles & (int)NET_FW_PROFILE_TYPE2_.NET_FW_PROFILE2_ALL) != 0))}");
+                        LogHelper.Debug($"{r.ApplicationName} <-->  {conn.Path}   {true && (String.IsNullOrEmpty(r.ApplicationName) || StringComparer.CurrentCultureIgnoreCase.Compare(r.ApplicationName, conn.Path) == 0)}");
+                        LogHelper.Debug($"{r.ServiceName}  <-->  {String.Join(",", conn.ServiceName)}    {true && ((String.IsNullOrEmpty(r.ServiceName) || (r.ServiceName ?? "").Any() && conn.ServiceName == "*" || StringComparer.CurrentCultureIgnoreCase.Equals(r.ServiceName, conn.ServiceName)))}");
+                        LogHelper.Debug($"{r.Protocol}  <-->  {conn.RawProtocol} {true && (r.Protocol == Protocol.ANY || conn.RawProtocol == r.Protocol)}");
+                        LogHelper.Debug($"{r.RemoteAddresses}  <-->  {conn.TargetIP} {true && Common.Net.WFP.Rules.Rule.CheckRuleAddresses(r.RemoteAddresses, conn.TargetIP ?? "")}");
+                        LogHelper.Debug($"{r.RemotePorts}  <-->  {conn.TargetPort} {true && Common.Net.WFP.Rules.Rule.CheckRulePorts(r.RemotePorts, conn.TargetPort ?? "")}");
+                        LogHelper.Debug($"{r.LocalPorts}  <-->  {conn.SourcePort} {true && Common.Net.WFP.Rules.Rule.CheckRulePorts(r.LocalPorts, conn.SourcePort)}");
+                        LogHelper.Debug($"{r.AppPkgId}  <-->  {conn.CurrentAppPkgId} {true && (String.IsNullOrEmpty(r.AppPkgId) || (r.AppPkgId == conn.CurrentAppPkgId))}");
+                        LogHelper.Debug($"{r.LUOwn}  <-->  {conn.CurrentLocalUserOwner} {true && (String.IsNullOrEmpty(r.LUOwn) || (r.LUOwn == conn.CurrentLocalUserOwner))}");
+
+                        return false;
+                    });
                     return false;
                 }
 

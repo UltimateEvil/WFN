@@ -19,6 +19,9 @@ public static partial class FirewallHelper
 
     public static bool AddRule(INetFwRule rule)
     {
+        allCache = null;
+        activeCache = null;
+
         try
         {
             LogHelper.Debug("Adding rule to firewall...");
@@ -45,6 +48,8 @@ public static partial class FirewallHelper
     /// <returns></returns>
     public static bool RemoveRule(string ruleName)
     {
+        allCache = null;
+        activeCache = null;
         try
         {
             firewallPolicy.Rules.Remove(ruleName);
@@ -138,8 +143,19 @@ public static partial class FirewallHelper
 
     private static Rule[]? wshRulesCache = null;
 
+    private static Rule[]? allCache = null;
+    private static Rule[]? activeCache = null;
+    private static DateTime? lastUpdate = null;
     public static Rule[] GetRules(bool AlsoGetInactive = false)
     {
+        if (lastUpdate.HasValue && lastUpdate.Value <= DateTime.Now.Subtract(new TimeSpan(0, 1, 0))) {
+            allCache = null;
+            activeCache = null;
+        }
+        if (allCache is not null && activeCache is not null) {
+            return AlsoGetInactive ? allCache : activeCache;
+        }
+
         if (wshRulesCache is null)
         {
             var keyStatic = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\RestrictedServices\Static\System");
@@ -165,14 +181,10 @@ public static partial class FirewallHelper
                                       .Select(r => new FwRule(r))
                                       .Concat(wshRulesCache);
 
-        if (!AlsoGetInactive)
-        {
-            return ret.Where(r => r.Enabled).ToArray();
-        }
-        else
-        {
-            return ret.ToArray();
-        }
+        allCache = ret.ToArray();
+        activeCache = ret.Where(r => r.Enabled).ToArray();
+        lastUpdate = DateTime.Now;
+        return GetRules(AlsoGetInactive);
     }
 
     public static bool IsCurrentProfilePublic() => (firewallPolicy.CurrentProfileTypes & (int)NET_FW_PROFILE_TYPE2_.NET_FW_PROFILE2_PUBLIC) != 0;
@@ -184,7 +196,17 @@ public static partial class FirewallHelper
     public static IEnumerable<Rule> GetMatchingRules(string path, string appPkgId, int protocol, string target, string targetPort, string localPort, string service, string localUserOwner, bool blockOnly, bool outgoingOnly = true)
     {
         var currentProfile = GetCurrentProfile(); //This call is relatively slow, and calling it many times causes a startup delay. Let's cache it!
-        IEnumerable<Rule> ret = GetRules().Where(r => r.Matches(path, service, protocol, localPort, target, targetPort, appPkgId, localUserOwner, currentProfile));
+        IEnumerable<Rule> ret = GetRules().Where(r => {
+            bool match = r.Matches(path, service, protocol, localPort, target, targetPort, appPkgId, localUserOwner, currentProfile);
+            bool otherMatch = r.Matches(path, service, protocol, localPort, target, targetPort, appPkgId, localUserOwner, currentProfile);
+            if(match != otherMatch)
+            {
+                bool res = r.Matches(path, service, protocol, localPort, target, targetPort, appPkgId, localUserOwner, currentProfile);
+                LogHelper.Debug($"HELP, {match} {otherMatch} {res}");
+                return res;
+            }
+            return match;
+        });
         if (blockOnly)
         {
             ret = ret.Where(r => r.Action == NET_FW_ACTION_.NET_FW_ACTION_BLOCK);

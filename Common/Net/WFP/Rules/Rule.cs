@@ -188,7 +188,7 @@ public abstract class Rule : INotifyPropertyChanged
         }
     }
 
-    internal bool Matches(string path, string service, int protocol, string localport, string target, string remoteport, string appPkgId, string LocalUserOwner, int currentProfile)
+    public bool Matches(string path, string service, int protocol, string localport, string target, string remoteport, string appPkgId, string LocalUserOwner, int currentProfile)
     {
         //Note: This outputs *really* a lot, so use the if-statement to filter!
         /*if (!String.IsNullOrEmpty(r.ApplicationName) && r.ApplicationName.Contains("winword.exe"))
@@ -243,7 +243,7 @@ public abstract class Rule : INotifyPropertyChanged
         if (result && !(string.IsNullOrEmpty(ApplicationName) || StringComparer.CurrentCultureIgnoreCase.Equals(ApplicationName, path)))
         {
             bool b = false;
-    }
+        }
         return result;*/
     }
 
@@ -273,7 +273,7 @@ public abstract class Rule : INotifyPropertyChanged
         return ret;
     }
 
-    private static bool CheckRuleAddresses(string? ruleAddresses, string checkedAddress)
+    public static bool CheckRuleAddresses(string? ruleAddresses, string checkedAddress)
     {
         if (string.IsNullOrEmpty(ruleAddresses) || ruleAddresses == "*")
         {
@@ -301,7 +301,7 @@ public abstract class Rule : INotifyPropertyChanged
         return false;
     }
 
-    private static bool CheckRulePorts(string? rulePorts, string checkedPort)
+    public static bool CheckRulePorts(string? rulePorts, string checkedPort)
     {
         if (string.IsNullOrEmpty(rulePorts) || rulePorts == "*")
         {
