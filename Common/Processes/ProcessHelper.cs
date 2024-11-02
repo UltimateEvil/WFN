@@ -196,8 +196,7 @@ public static partial class ProcessHelper
             return String.Empty;
         }
 
-        SafeFileHandle hToken = new SafeFileHandle();
-        TOKEN_USER hTokenInformation;
+        SafeFileHandle hToken = new();
         try
         {
             if (!NativeMethods.OpenProcessToken(hProcess, TOKEN_ACCESS_MASK.TOKEN_QUERY, out hToken))
@@ -213,7 +212,7 @@ public static partial class ProcessHelper
                 return String.Empty;
             }
 
-            hTokenInformation = new TOKEN_USER();
+            TOKEN_USER hTokenInformation = new();
             if (!NativeMethods.GetTokenInformation(hToken, TOKEN_INFORMATION_CLASS.TokenUser, &hTokenInformation, dwBufSize, out dwBufSize))
             {
                 LogHelper.Warning("Unable to retrieve process local user owner: token cannot be opened!");
@@ -231,8 +230,8 @@ public static partial class ProcessHelper
         }
         finally
         {
-            hToken?.Close();
-            hProcess?.Close();
+            hToken?.Dispose();
+            hProcess?.Dispose();
         }
     }
 
