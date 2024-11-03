@@ -66,16 +66,14 @@
         </ResourceDictionary>
     </Window.Resources>
     <DockPanel Background="{DynamicResource {x:Static SystemColors.WindowBrushKey}}" x:Name="Main">
-        <controls:CustomWindowChrome Height="28" Background="{DynamicResource {x:Static SystemColors.ActiveCaptionBrushKey}}" DockPanel.Dock="Top" CanClose="False">
-            <UniformGrid Grid.Column="2" Rows="1">
-                <Button Padding="10,0" Style="{StaticResource TitleBarButton}" IsEnabled="{Binding NbConnectionsBefore,Mode=OneWay,Converter={StaticResource objectToBoolean}}" Foreground="{DynamicResource {x:Static SystemColors.ActiveCaptionTextBrush}}" Click="btnPrev_Click">
-                    <TextBlock Text="{Binding NbConnectionsBefore,Mode=OneWay,FallbackValue='&lt; Prev. (0)',StringFormat='&lt; Prev. ({0})'}" />
-                </Button>
-                <Button Padding="10,0" Style="{StaticResource TitleBarButton}" IsEnabled="{Binding NbConnectionsAfter,Mode=OneWay,Converter={StaticResource objectToBoolean}}"  Foreground="{DynamicResource {x:Static SystemColors.ActiveCaptionTextBrush}}" Click="btnNext_Click">
-                    <TextBlock Text="{Binding NbConnectionsAfter,Mode=OneWay,FallbackValue='Next (0) &gt;',StringFormat='Next (\{0}) &gt;'}" />
-                </Button>
-            </UniformGrid>
-        </controls:CustomWindowChrome>
+        <UniformGrid Height="28" Background="{DynamicResource {x:Static SystemColors.ActiveCaptionBrushKey}}" DockPanel.Dock="Top" Grid.Column="2" Rows="1">
+            <Button Padding="10,0" Style="{StaticResource TitleBarButton}" IsEnabled="{Binding NbConnectionsBefore,Mode=OneWay,Converter={StaticResource objectToBoolean}}" Foreground="{DynamicResource {x:Static SystemColors.ActiveCaptionTextBrush}}" Click="btnPrev_Click">
+                <TextBlock Text="{Binding NbConnectionsBefore,Mode=OneWay,FallbackValue='&lt; Prev. (0)',StringFormat='&lt; Prev. ({0})'}" />
+            </Button>
+            <Button Padding="10,0" Style="{StaticResource TitleBarButton}" IsEnabled="{Binding NbConnectionsAfter,Mode=OneWay,Converter={StaticResource objectToBoolean}}"  Foreground="{DynamicResource {x:Static SystemColors.ActiveCaptionTextBrush}}" Click="btnNext_Click">
+                <TextBlock Text="{Binding NbConnectionsAfter,Mode=OneWay,FallbackValue='Next (0) &gt;',StringFormat='Next (\{0}) &gt;'}" />
+            </Button>
+        </UniformGrid>
         <Border>
             <Grid x:Name="MainGrid">
                 <Grid.RowDefinitions>
