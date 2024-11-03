@@ -25,10 +25,10 @@
             </Grid>
         </ContentControl>
         <ContentControl Style="{StaticResource Container}">
-            <StackPanel DataContext="{Binding StatusWrapper,Mode=OneWay}" TextElement.Foreground="{DynamicResource {x:Static SystemColors.WindowTextBrushKey}}">
+            <StackPanel TextElement.Foreground="{DynamicResource {x:Static SystemColors.WindowTextBrushKey}}">
                 <TextBlock Margin="5" TextWrapping="Wrap" Text="{x:Static resx:Resources.Status_Heading1 }" />
                 <TextBlock Margin="5" TextWrapping="Wrap" FontStyle="Italic" Text="{x:Static resx:Resources.Status_NoteAboutProfiles}" />
-                <Grid IsEnabled="{Binding IsElevated, Source={x:Static Application.Current}}">
+                <Grid DataContext="{Binding StatusWrapper,Mode=OneWay}" IsEnabled="{Binding IsElevated, Source={x:Static Application.Current}}">
                     <Grid.Resources>
                         <Style TargetType="StackPanel">
                             <Setter Property="Margin" Value="5" />
@@ -167,7 +167,8 @@
                     </CheckBox>
                 </Grid>
                 <TextBlock Margin="10,10,10,0" FontStyle="Italic" TextWrapping="Wrap" Text="{x:Static resx:Resources.Status_FooterRemark}" />
-                <ScrollViewer Background="{DynamicResource {x:Static SystemColors.InfoBrushKey}}" Height="70">
+                <ScrollViewer 
+                    Background="{DynamicResource {x:Static SystemColors.InfoBrushKey}}" Height="70">
                     <ItemsControl ItemsSource="{Binding Messages}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
