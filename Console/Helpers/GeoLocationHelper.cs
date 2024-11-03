@@ -59,7 +59,9 @@ public static class GeoLocationHelper
 
         if (address == IPAddress.None)
         {
-            throw new Exception(Resources.GeoConnection2_CannotRetrieveConnectionLocationForPublicIp);
+            // TODO: notify the user.
+            // throw new Exception(Resources.GeoConnection2_CannotRetrieveConnectionLocationForPublicIp);
+            return _unknownLocation;
         }
 
         return await Task.Run(() =>
