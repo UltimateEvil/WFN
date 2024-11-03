@@ -598,6 +598,9 @@ public partial class NotificationWindow : System.Windows.Window, INotifyProperty
             case 2:
                 SkipAll();
                 break;
+            case -1:
+                return;
         }
+        cb.SelectedIndex = -1;
     }
 }
