@@ -17,7 +17,6 @@ public class CustomRule : Rule
 
     public override NET_FW_ACTION_ Action { get; }
     public override string? ApplicationName { get; }
-    public override string? ApplicationShortName { get; }
     public override string? AppPkgId { get; }
     public override string? Description { get; }
     public override NET_FW_RULE_DIRECTION_ Direction { get; }
