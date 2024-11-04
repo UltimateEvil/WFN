@@ -1,8 +1,11 @@
 ﻿using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Controls;
 using System.Xml;
 
 using Wokhan.WindowsFirewallNotifier.Common.Logging;
@@ -18,6 +21,7 @@ namespace Wokhan.WindowsFirewallNotifier.Common.Net.WFP;
 /// </summary>
 public static class NetshHelper
 {
+    private static bool HasLoaded = false;
     private static XmlDocument? FiltersXmlDoc;
     private static XmlDocument? WFPStateXmlDoc;
 
@@ -29,19 +33,23 @@ public static class NetshHelper
         HasErrors = true
     };
 
-    private static object InitLocker = new object();
+    private static readonly object InitLocker = new();
 
     private static void Init(bool refreshData = false)
     {
-        lock (InitLocker)
+        if (!HasLoaded || refreshData) //quick, lock-free exit.
         {
-            if (FiltersXmlDoc is null || WFPStateXmlDoc is null || refreshData)
+            lock (InitLocker)
             {
-                // Use parallel tasks to speed things up a bit
-                var tFilters = Task.Run(() => FiltersXmlDoc = LoadWfpFilters()); // firewall filters
-                var tStates = Task.Run(() => WFPStateXmlDoc = LoadWfpState()); // all filters added by other provider e.g. firewall apps
+                if (!HasLoaded || refreshData)
+                {
+                    // Use parallel tasks to speed things up a bit
+                    var tFilters = Task.Run(() => FiltersXmlDoc = LoadWfpFilters()); // firewall filters
+                    var tStates = Task.Run(() => WFPStateXmlDoc = LoadWfpState()); // all filters added by other provider e.g. firewall apps
 
-                Task.WaitAll(tFilters, tStates);
+                    Task.WaitAll(tFilters, tStates);
+                }
+                HasLoaded = true;
             }
         }
     }
@@ -81,7 +89,7 @@ public static class NetshHelper
     {
         XmlDocument? xmlDoc = null;
         var sys32Folder = Environment.GetFolderPath(Environment.SpecialFolder.System);
-        RunResult rr = RunCommandCapturing(sys32Folder + @"\netsh.exe", @"wfp show filters file=-");
+        RunResult rr = RunCommandCapturing(sys32Folder + @"\netsh.exe", [@"wfp", @"show", @"filters", @"file=-"]);
         if (rr.exitCode == 0)
         {
             xmlDoc = SafeLoadXml(rr.outputData.ToString());
@@ -97,7 +105,7 @@ public static class NetshHelper
     {
         XmlDocument? xmlDoc = null;
         var sys32Folder = Environment.GetFolderPath(Environment.SpecialFolder.System);
-        RunResult rr = RunCommandCapturing(sys32Folder + @"\netsh.exe", @"wfp show state file=-");
+        RunResult rr = RunCommandCapturing(sys32Folder + @"\netsh.exe", [@"wfp", @"show", @"state", @"file=-"]);
         if (rr.exitCode == 0)
         {
             xmlDoc = SafeLoadXml(rr.outputData.ToString());
@@ -245,7 +253,7 @@ public static class NetshHelper
         internal int exitCode = -1;
     }
 
-    private static RunResult RunCommandCapturing(string command, string args, string? workingDir = null)
+    private static RunResult RunCommandCapturing(string command, IEnumerable<string> args, string? workingDir = null)
     {
         var rr = new RunResult();
         try
@@ -256,30 +264,45 @@ public static class NetshHelper
             {
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
+                RedirectStandardInput = true,
                 UseShellExecute = false,
                 WorkingDirectory = string.IsNullOrWhiteSpace(workingDir) ? Path.GetTempPath() : workingDir,
                 CreateNoWindow = true,
-                WindowStyle = ProcessWindowStyle.Hidden
+                WindowStyle = ProcessWindowStyle.Hidden,
+                Verb = @"RunAs"
             };
+            bool ReadSinceLast = true;
+
             // note: outputData.appendLine should not be used because it can cause a break in the middle of an output line when the buffer is reached
-            p.OutputDataReceived += (sender, arg) => { rr.outputData.Append(arg.Data); rr.dataLineCnt++; };
-            p.ErrorDataReceived += (sender, arg) => rr.errorData.AppendLine(arg.Data);
+            //TODO: reading line by line is extreamely slow. Replace by a custom buffer-based read.
+            p.OutputDataReceived += (sender, arg) => {
+                ReadSinceLast = true;
+                rr.outputData.Append(arg.Data); rr.dataLineCnt++; 
+            };
+            p.ErrorDataReceived += (sender, arg) => {
+                ReadSinceLast = true;
+                rr.errorData.AppendLine(arg.Data);
+            };
             p.EnableRaisingEvents = false;
             //p.Exited += onProcessExit;
             p.Start();
+            p.StandardInput.Close();
             p.BeginOutputReadLine();
             p.BeginErrorReadLine();
-            // wait 10s max
-            if (p.WaitForExit(10000))
-            {
-                rr.exitCode = p.ExitCode;
+
+            while (ReadSinceLast) {
+                ReadSinceLast = false;
+                if (p.WaitForExit(10000))
+                {
+                    rr.exitCode = p.ExitCode;
+                    break;
+                }
             }
-            else
-            {
-                var msg = $"Process didn't respond after 10s, killing it now. Command: {command} / Args: {args}";
+            if (!p.HasExited) {
+                p.Kill();
+                var msg = $"Process didn't respond after 10s, killing it now. Command: {p.StartInfo.FileName} / Args: {String.Join(' ', p.StartInfo.ArgumentList)}";
                 LogHelper.Error(msg, null);
                 rr.errorData.AppendLine(msg);
-                p.Kill();
             }
         }
         catch (Exception ex)
