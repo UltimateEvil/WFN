@@ -228,7 +228,7 @@ public sealed class App : Application, IDisposable
 
                     LogHelper.Debug($"pid: {Environment.ProcessId} GetMatchingRules: {conn.FileName}, {conn.Protocol}, {conn.TargetIP}, {conn.TargetPort}, {conn.SourcePort}, {conn.ServiceName}");
                     LogHelper.Debug($"pid: {Process.GetCurrentProcess().Id} GetMatchingRules: {conn.FileName}, {conn.Protocol}, {conn.TargetIP}, {conn.TargetPort}, {conn.SourcePort}, {conn.ServiceName}");
-                    blockingRules.All(r => {//no need to check more, the first is sufficient
+                    /*blockingRules.All(r => {//no need to check more, the first is sufficient
 
                         LogHelper.Debug($"enabled {r.Name} {r.Enabled} {r.Matches(conn.Path, conn.ServiceName ?? "",  conn.RawProtocol, conn.SourcePort, conn.TargetIP, conn.TargetPort, conn.CurrentAppPkgId, conn.CurrentLocalUserOwner, FirewallHelper.GetCurrentProfile())}");
                         LogHelper.Debug($"{r.Profiles} <--> {FirewallHelper.GetCurrentProfile()} {(((r.Profiles & FirewallHelper.GetCurrentProfile()) != 0) || ((r.Profiles & (int)NET_FW_PROFILE_TYPE2_.NET_FW_PROFILE2_ALL) != 0))}");
@@ -242,7 +242,7 @@ public sealed class App : Application, IDisposable
                         LogHelper.Debug($"{r.LUOwn}  <-->  {conn.CurrentLocalUserOwner} {true && (String.IsNullOrEmpty(r.LUOwn) || (r.LUOwn == conn.CurrentLocalUserOwner))}");
 
                         return false;
-                    });
+                    });*/
                     return false;
                 }
 
