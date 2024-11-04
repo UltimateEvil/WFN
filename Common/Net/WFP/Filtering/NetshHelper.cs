@@ -318,8 +318,8 @@ public static class NetshHelper
         XmlDocument? xmlDoc = null;
         try
         {
-            using var reader = XmlReader.Create(new StringReader(xml), new XmlReaderSettings() { XmlResolver = null });
-
+            //TODO: the state XML has two root notes and an XML header node. Handle it somehow.
+            using var reader = XmlReader.Create(new StringReader(xml), new XmlReaderSettings() { XmlResolver = null});
             // CA3075 - Unclear message: Unsafe overload of 'LoadXml' 
             // see: https://github.com/dotnet/roslyn-analyzers/issues/2477
             xmlDoc = new XmlDocument() { XmlResolver = null };
