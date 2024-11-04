@@ -18,10 +18,14 @@ public class LoggedConnection : ConnectionBaseInfo
 {
     public int Index { get; protected set; }
     public int Id { get; protected set; }
-    public string? FilterId { get; protected set; }
+    public int? FilterId { get; protected set; }
+
+    public string? MatchingFilterName { get {
+            return MatchingFilter?.Name;
+        } }
 
     private FilterResult? _matchingFilter;
-    public FilterResult? MatchingFilter => this.GetOrSetValueAsync(() => Task.Run(() => NetshHelper.FindMatchingFilterInfo(int.Parse(FilterId))), ref _matchingFilter, OnPropertyChanged);
+    public FilterResult? MatchingFilter => this.GetOrSetValueAsync(() => Task.Run(() => NetshHelper.FindMatchingFilterInfo(FilterId ?? -1)), ref _matchingFilter, OnPropertyChanged);
     public string? Reason { get; protected set; }
     public string? Message { get; protected set; }
     public bool IsAllowed { get; private set; }
@@ -51,6 +55,8 @@ public class LoggedConnection : ConnectionBaseInfo
             //TODO: set this as optional according to the EnableServiceResolution settings (have to check impacts first)
             var serviceName = ServiceNameResolver.GetServiceInfo(pid, fileName);
 
+            var parsedId = GetReplacementString(entry, 8);
+
             var le = new T()
             {
                 Index = index,
@@ -68,7 +74,7 @@ public class LoggedConnection : ConnectionBaseInfo
                 RawProtocol = protocol,
                 Protocol = WFP.Protocol.GetProtocolAsString(protocol),
                 Direction = direction,
-                FilterId = GetReplacementString(entry, 8),
+                FilterId = parsedId != null ? int.Parse(parsedId) : null ,
                 Reason = EventLogAsyncReader.GetEventInstanceIdAsString(entry.InstanceId),
                 Message = entry.Message
             };

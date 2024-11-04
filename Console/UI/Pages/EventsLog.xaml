@@ -69,6 +69,7 @@
                         <DataGridTextColumn Header="Port" Binding="{Binding TargetPort,Mode=OneTime}" Width="Auto"/>
                         <DataGridTextColumn Header="Protocol" Binding="{Binding Protocol,Mode=OneTime}" Width="Auto"/>
                         <DataGridTextColumn Header="FilterId" Binding="{Binding FilterId,Mode=OneTime}" Width="Auto"/>
+                    <DataGridTextColumn Header="FilterText" Binding="{Binding MatchingFilterName,Mode=OneTime}" Width="Auto"/>
                         <DataGridTextColumn Header="Dir" Binding="{Binding Direction,Mode=OneTime}" Width="Auto">
                             <DataGridTextColumn.CellStyle>
                                 <Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
