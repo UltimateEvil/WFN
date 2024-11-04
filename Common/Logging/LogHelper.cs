@@ -118,12 +118,12 @@ public static class LogHelper
     }
 
 #if DEBUG
-    public static void Error(string msg, Exception e,
+    public static void Error(string msg, Exception? e,
         [CallerMemberName] string? memberName = null,
         [CallerFilePath] string? filePath = null,
         [CallerLineNumber] int lineNumber = -1)
 #else
-    public static void Error(string msg, Exception e)
+    public static void Error(string msg, Exception? e)
 #endif
     {
 #if DEBUG
