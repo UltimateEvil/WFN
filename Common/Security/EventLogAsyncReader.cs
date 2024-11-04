@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Wokhan.WindowsFirewallNotifier.Common.Security;
@@ -82,6 +83,7 @@ public static class EventLogAsyncReader
 
 public sealed class EventLogAsyncReader<T> : IPagedSourceProviderAsync<T>, INotifyPropertyChanged, IDisposable where T : class, new()
 {
+    private readonly CancellationTokenSource runningUpdates = new();
     public Func<EventLogEntry, bool>? FilterPredicate { get; set; }
 
     public event EntryWrittenEventHandler EntryWritten
@@ -108,7 +110,7 @@ public sealed class EventLogAsyncReader<T> : IPagedSourceProviderAsync<T>, INoti
 
     private readonly Func<EventLogEntry, int, T?> _projection;
     public Func<int, T>? PlaceHolderCreator { get; set; }
-    private readonly Dictionary<int, int> filteredPagesMap = new Dictionary<int, int>();
+    private readonly Dictionary<int, int> filteredPagesMap = [];
 
     public int Count => eventLog.Entries.Count;
 
@@ -130,7 +132,19 @@ public sealed class EventLogAsyncReader<T> : IPagedSourceProviderAsync<T>, INoti
 
     public async Task<PagedSourceItemsPacket<T>> GetItemsAtAsync(int pageoffset, int count, bool usePlaceholder)
     {
-        return await Task.Run(() => GetItemsAt(pageoffset, count, usePlaceholder)).ConfigureAwait(false);
+        try
+        {
+            return await Task.Run(() => GetItemsAt(pageoffset, count, usePlaceholder), runningUpdates.Token).ConfigureAwait(false);
+        }
+        catch (ObjectDisposedException) {
+            //FIXME: the task was queued just as the object is getting disposed of. 
+            return await Task.FromResult<PagedSourceItemsPacket<T>>(
+                new PagedSourceItemsPacket<T>
+                {
+                    Items = []
+                }
+                );
+        }
     }
 
     private readonly T placeHolder = new T();
@@ -263,9 +277,10 @@ public sealed class EventLogAsyncReader<T> : IPagedSourceProviderAsync<T>, INoti
 
     public void Dispose()
     {
+        runningUpdates.Cancel();
         eventLog.EnableRaisingEvents = false;
         eventLog.Dispose();
-        //eventLog = null;
+        runningUpdates.Dispose();
     }
 
 

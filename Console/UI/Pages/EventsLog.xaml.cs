@@ -1,7 +1,7 @@
 ﻿
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-
+using Mapsui.Extensions;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
@@ -20,6 +20,8 @@ namespace Wokhan.WindowsFirewallNotifier.Console.UI.Pages;
 [ObservableObject]
 public sealed partial class EventsLog : Page, IDisposable
 {
+
+    private readonly CancellationTokenSource runningUpdates = new();
     public EventLogAsyncReader<LoggedConnection>? EventsReader { get; set; }
 
     [ObservableProperty]
@@ -75,16 +77,15 @@ public sealed partial class EventsLog : Page, IDisposable
     {
         try
         {
-            EventsReader?.Dispose();
+            var old = EventsReader;
             EventsReader = new EventLogAsyncReader<LoggedConnection>(EventLogAsyncReader.EVENTLOG_SECURITY, LoggedConnection.CreateFromEventLogEntry)
             {
                 FilterPredicate = EventLogAsyncReader.IsFirewallEvent
             };
             OnPropertyChanged(nameof(EventsReader));
-
-            // Fix for #159 - refreshing
-            var x = EventsReader.Entries;
-            DataView = CollectionViewSource.GetDefaultView(x);
+            DataView = CollectionViewSource.GetDefaultView(EventsReader.Entries);
+            runningUpdates.Cancel();
+            old?.Dispose();
         }
         catch (Exception exc)
         {
@@ -95,15 +96,19 @@ public sealed partial class EventsLog : Page, IDisposable
 
     private void StopHandlingSecurityLogEvents()
     {
+        var old = EventsReader;
         DataView = null;
-        EventsReader?.Dispose();
         EventsReader = null;
+        runningUpdates.Cancel();
+        old?.Dispose();
     }
 
     public void Dispose()
     {
-        DataView = null;
+        runningUpdates.Cancel();
+        DataView?.DisposeIfDisposable();
         EventsReader?.Dispose();
+        runningUpdates.Dispose();
     }
 
     [RelayCommand(CanExecute = nameof(LocateCanExecute))]
@@ -154,13 +159,20 @@ public sealed partial class EventsLog : Page, IDisposable
 
 
 
-    private bool _isResetTextFilterPending;
+    private int _isResetTextFilterPending;
     internal async void ResetTextFilter()
     {
-        if (!_isResetTextFilterPending)
+
+        if (0 == Interlocked.CompareExchange(ref _isResetTextFilterPending, 1, 0))
         {
-            _isResetTextFilterPending = true;
-            await Task.Delay(500).ConfigureAwait(true);
+            try
+            {
+                await Task.Delay(500, runningUpdates.Token).ConfigureAwait(true);
+            }
+            catch (TaskCanceledException) {
+                Interlocked.Exchange(ref _isResetTextFilterPending, 0);
+                return;
+            }
             if (!string.IsNullOrWhiteSpace(TextFilter))
             {
                 DataView!.Filter -= FilterTextPredicate;
@@ -170,9 +182,7 @@ public sealed partial class EventsLog : Page, IDisposable
             {
                 DataView!.Filter -= FilterTextPredicate;
             }
-            _isResetTextFilterPending = false;
+            Interlocked.Exchange(ref _isResetTextFilterPending,0);
         }
     }
-
-
 }
